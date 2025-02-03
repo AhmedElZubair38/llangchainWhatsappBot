@@ -1,37 +1,3 @@
-# from flask import Flask, request
-# from googlesearch import search
-# from twilio.twiml.messaging_response import MessagingResponse
-
-# app = Flask(__name__)
-
-# @app.route("/", methods=["POST"])
-# def bot():
-#     user_msg = request.values.get('Body', '').lower()
-#     response = MessagingResponse()
-#     query = f"{user_msg} site:geeksforgeeks.org"  # Fixed query syntax
-    
-#     search_results = []
-#     try:
-#         # Use "num_results" instead of "num"
-#         for url in search(query, num_results=3):  # <-- Fix here
-#             search_results.append(url)
-        
-#         if search_results:
-#             response.message(f"--- Results for '{user_msg}' ---")
-#             for result in search_results:
-#                 response.message(result)
-#         else:
-#             response.message("No results found.")
-    
-#     except Exception as e:
-#         response.message(f"Error: {str(e)}")
-
-#     return str(response)
-
-# if __name__ == "__main__":
-#     app.run()
-
-
 from flask import Flask, request, jsonify
 from twilio.twiml.messaging_response import MessagingResponse
 import os
@@ -40,6 +6,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 from openai import OpenAI
 import pandas as pd
+import threading
 
 # Load environment variables
 load_dotenv()
@@ -173,7 +140,7 @@ def handle_booking(message, resp, session):
             "We'll contact you shortly!\n"
             "Type 'menu' to return"
         )
-        user_sessions.pop(session['from'], None)
+        # user_sessions.pop(sender, None)
 
 def handle_ai_query(message, resp, session):
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -185,4 +152,4 @@ def handle_ai_query(message, resp, session):
     resp.message(response_text + "\n\nType 'menu' to return")
 
 if __name__ == '__main__':
-    app.run(port=5000) 
+    app.run(port=5000)
