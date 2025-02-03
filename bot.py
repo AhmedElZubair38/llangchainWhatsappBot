@@ -185,4 +185,4 @@ def handle_ai_query(message, resp, session):
     resp.message(response_text + "\n\nType 'menu' to return")
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    app.run(port=5000) 
