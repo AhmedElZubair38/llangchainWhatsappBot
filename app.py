@@ -3,10 +3,14 @@ import os
 import logging
 from dotenv import load_dotenv
 from datetime import datetime
-import openai  # Use openai package directly
+# import openai
 import pandas as pd
 import uuid
 import threading
+# from langchain_community.chat_models import ChatOllama
+from langchain.schema import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+
 
 load_dotenv()
 
@@ -238,29 +242,33 @@ def handle_booking(message):
         logger.error(f"Booking error: {str(e)}")
         return {"text": "⚠️ Booking failed. Type 'menu' to restart."}
 
+
 def handle_ai_query(message):
-    """ Uses the OpenAI API to handle AI queries about programs """
+    """ Uses the Ollama API to handle AI queries about programs """
     try:
-        # Create an OpenAI client using your API key
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        ai_response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You're an assistant for Aquasprint Swimming Academy. "
-                        "Provide helpful responses about swimming programs, safety, and facilities. "
-                        "Keep answers concise."
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": message
-                }
-            ]
+
+        # Initialize Ollama client
+        llm = ChatOpenAI(
+        model="deepseek-llm:latest",
+        base_url="http://172.27.240.1:11434/v1", verbose=True, temperature=0.1
         )
-        response_text = ai_response.choices[0].message.content
+        
+        # Create message chain
+        messages = [
+            SystemMessage(
+                content=(
+                    "You're an assistant for Aquasprint Swimming Academy. "
+                    "Provide helpful responses about swimming programs, safety, and facilities. "
+                    "Keep answers concise."
+                )
+            ),
+            HumanMessage(content=message)
+        ]
+        
+        # Get response
+        ai_response = llm.invoke(messages)
+        response_text = ai_response.content
+        
         return {
             "text": f"🤖 AI Agent:\n{response_text}",
             "options": [{"value": "menu", "label": "Return to Menu"}]
@@ -268,6 +276,7 @@ def handle_ai_query(message):
     except Exception as e:
         logger.error(f"AI Query Failed: {e}")
         return {"text": "Our AI agent is currently busy. Please try again later."}
+
 
 if __name__ == '__main__':
     app.run(port=5000)
