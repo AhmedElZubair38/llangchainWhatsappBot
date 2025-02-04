@@ -8,6 +8,10 @@ import uuid
 import threading
 from langchain.schema import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_chroma import Chroma
+from langchain_core.messages import SystemMessage, HumanMessage
+
 
 load_dotenv()
 
@@ -44,8 +48,8 @@ def save_inquiry(data):
     with csv_lock:
         try:
             df = pd.DataFrame([data])
-            file_exists = os.path.exists('inquiries.csv')
-            df.to_csv('inquiries.csv', mode='a', header=not file_exists, index=False)
+            file_exists = os.path.exists('/data/inquiries.csv')
+            df.to_csv('/data/inquiries.csv', mode='a', header=not file_exists, index=False)
         except Exception as e:
             logger.error(f"Save failed: {str(e)}")
             raise
@@ -233,32 +237,50 @@ def handle_booking(message):
 
 
 def handle_ai_query(message):
-    """ Uses the Ollama API to handle AI queries about programs """
+    """Uses RAG with Ollama API to handle AI queries about swimming programs"""
     try:
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+        vector_store = Chroma(
+            collection_name="example_collection",
+            embedding_function=embeddings,
+            persist_directory="chroma_db"
+        )
+        retriever = vector_store.as_retriever(search_kwargs={'k': 3})
+
+        docs = retriever.invoke(message)
+        
+        knowledge = "\n\n".join([doc.page_content.strip() for doc in docs])
+        knowledge += "\n\nEnd of knowledge base."
 
         llm = ChatOpenAI(
-        model="deepseek-llm:latest",
-        base_url="http://172.27.240.1:11434/v1", verbose=True, temperature=0.1
+            model="deepseek-llm:latest",
+            base_url="http://172.27.240.1:11434/v1",
+            verbose=True,
+            temperature=0.1
         )
-        
+
         messages = [
             SystemMessage(
-                content=(
-                    "You're an assistant for Aquasprint Swimming Academy. "
-                    "Provide helpful responses about swimming programs, safety, and facilities. "
-                    "Keep answers concise."
-                )
+            content=f"""You're an assistant for Aquasprint Swimming Academy. Follow these rules:
+            1. Answer ONLY using the knowledge base below
+            2. Be concise and professional
+            3. If unsure, say "I don't have that information"
+            4. Never make up answers
+
+            Knowledge Base:
+            {knowledge}"""
             ),
             HumanMessage(content=message)
         ]
-        
+
         ai_response = llm.invoke(messages)
         response_text = ai_response.content
-        
+
         return {
             "text": f"🤖 AI Agent:\n{response_text}",
             "options": [{"value": "menu", "label": "Return to Menu"}]
         }
+    
     except Exception as e:
         logger.error(f"AI Query Failed: {e}")
         return {"text": "Our AI agent is currently busy. Please try again later."}
