@@ -1,2 +1,1 @@
 # llangchainWhatsappBot
-llangchain whatsapp bot

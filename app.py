@@ -3,14 +3,11 @@ import os
 import logging
 from dotenv import load_dotenv
 from datetime import datetime
-# import openai
 import pandas as pd
 import uuid
 import threading
-# from langchain_community.chat_models import ChatOllama
 from langchain.schema import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-
 
 load_dotenv()
 
@@ -20,10 +17,8 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'supersecretkey')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Global CSV lock to coordinate file writes across threads
 csv_lock = threading.Lock()
 
-# Programs dictionary
 PROGRAMS = {
     '1': 'Kids Program',
     '2': 'Adults Program',
@@ -57,7 +52,6 @@ def save_inquiry(data):
 
 @app.route('/')
 def chat_interface():
-    # Initialize a unique session
     session['session_id'] = str(uuid.uuid4())
     session['state'] = 'MAIN_MENU'
     return render_template('chat.html')
@@ -75,7 +69,6 @@ def handle_message():
             "text": "⚠️ An error occurred while processing your request. Please try again or type 'menu'"
         })
 
-    # Update the session state if provided in the response
     if "new_state" in response:
         session['state'] = response.get('new_state', 'MAIN_MENU')
 
@@ -145,7 +138,6 @@ def handle_main_menu(message):
             "new_state": 'AI_QUERY'
         }
     else:
-        # If the input is invalid, return the main menu again
         return get_main_menu()
 
 def handle_program_info(message):
@@ -176,7 +168,6 @@ def handle_program_selection(message):
     """ Prepares for booking by capturing the selected program """
     program = PROGRAMS.get(message)
     if program:
-        # Store booking data in session
         session['booking_data'] = {'program': program}
         session['booking_step'] = 'GET_NAME'
         return {
@@ -201,20 +192,19 @@ def handle_booking(message):
         if current_step == 'GET_NAME':
             booking_data['name'] = message
             session['booking_step'] = 'GET_PHONE'
-            session['booking_data'] = booking_data  # Save the updated booking data
+            session['booking_data'] = booking_data
             return {"text": "📱 What's your phone number?"}
 
         elif current_step == 'GET_PHONE':
             booking_data['phone'] = message
             session['booking_step'] = 'GET_EMAIL'
-            session['booking_data'] = booking_data  # Save the updated booking data
+            session['booking_data'] = booking_data
             return {"text": "📧 What's your email address?"}
 
         elif current_step == 'GET_EMAIL':
             booking_data['email'] = message
             booking_data['timestamp'] = datetime.now().isoformat()
 
-            # Save inquiry to CSV
             save_inquiry(booking_data)
 
             confirmation = (
@@ -226,7 +216,6 @@ def handle_booking(message):
                 "We'll contact you soon!"
             )
 
-            # Clear booking data from session
             session.pop('booking_data', None)
             session.pop('booking_step', None)
 
@@ -247,13 +236,11 @@ def handle_ai_query(message):
     """ Uses the Ollama API to handle AI queries about programs """
     try:
 
-        # Initialize Ollama client
         llm = ChatOpenAI(
         model="deepseek-llm:latest",
         base_url="http://172.27.240.1:11434/v1", verbose=True, temperature=0.1
         )
         
-        # Create message chain
         messages = [
             SystemMessage(
                 content=(
@@ -265,7 +252,6 @@ def handle_ai_query(message):
             HumanMessage(content=message)
         ]
         
-        # Get response
         ai_response = llm.invoke(messages)
         response_text = ai_response.content
         
