@@ -12,7 +12,6 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.messages import SystemMessage, HumanMessage
 
-
 load_dotenv()
 
 app = Flask(__name__)
@@ -31,6 +30,11 @@ PROGRAMS = {
     '5': 'Special Needs Program'
 }
 
+uid = 'postgres'
+pwd = 'ahmed'
+server = "172.27.249.6"
+database = "sample"
+
 def get_main_menu():
     return {
         "text": "👋 Welcome to Aquasprint Swimming Academy!\n\nChoose an option:",
@@ -43,16 +47,53 @@ def get_main_menu():
         ]
     }
 
+# def save_inquiry(data):
+#     """ Save inquiry data to CSV file in a thread-safe manner """
+#     with csv_lock:
+#         try:
+#             df = pd.DataFrame([data])
+#             file_exists = os.path.exists('data/inquiries.csv')
+#             df.to_csv('data/inquiries.csv', mode='a', header=not file_exists, index=False)
+#         except Exception as e:
+#             logger.error(f"Save failed: {str(e)}")
+#             raise
+
+import psycopg2
+from psycopg2 import sql
+
 def save_inquiry(data):
-    """ Save inquiry data to CSV file in a thread-safe manner """
-    with csv_lock:
-        try:
-            df = pd.DataFrame([data])
-            file_exists = os.path.exists('/data/inquiries.csv')
-            df.to_csv('/data/inquiries.csv', mode='a', header=not file_exists, index=False)
-        except Exception as e:
-            logger.error(f"Save failed: {str(e)}")
-            raise
+    """ Save inquiry data to PostgreSQL database """
+    conn = None
+    try:
+        conn = psycopg2.connect(
+            dbname=database,
+            user=uid,
+            password=pwd,
+            host=server
+        )
+        cur = conn.cursor()
+        
+        query = sql.SQL("""
+            INSERT INTO inquiries (program, name, phone, email, timestamp)
+            VALUES (%s, %s, %s, %s, %s)
+        """)
+        
+        cur.execute(query, (
+            data['program'],
+            data['name'],
+            data['phone'],
+            data['email'],
+            data['timestamp']
+        ))
+        
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        logger.error(f"Save failed: {str(e)}")
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
 
 @app.route('/')
 def chat_interface():
@@ -235,7 +276,6 @@ def handle_booking(message):
         logger.error(f"Booking error: {str(e)}")
         return {"text": "⚠️ Booking failed. Type 'menu' to restart."}
 
-
 def handle_ai_query(message):
     """Uses RAG with Ollama API to handle AI queries about swimming programs"""
     try:
@@ -253,7 +293,7 @@ def handle_ai_query(message):
         knowledge += "\n\nEnd of knowledge base."
 
         llm = ChatOpenAI(
-            model="deepseek-llm:latest",
+            model="deepseek-llm",
             base_url="http://172.27.240.1:11434/v1",
             verbose=True,
             temperature=0.1
