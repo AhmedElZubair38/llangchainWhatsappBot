@@ -505,48 +505,25 @@
 
 
 
-
-
-
-
-from flask import Flask, request, jsonify, session, render_template
-import os
-import logging
-from dotenv import load_dotenv
-from datetime import datetime
-import pandas as pd
-import uuid
-import threading
-from pydantic import BaseModel
-from langchain.schema import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_chroma import Chroma
-import psycopg2
-from psycopg2 import sql
-from typing import Optional, Dict, List
-from langchain_core.messages import SystemMessage, HumanMessage
-
-
-
-from flask import Flask, request, jsonify, session, render_template
-import os
-import logging
-from dotenv import load_dotenv
-from datetime import datetime
 import pandas as pd
 import uuid
 import threading
 import re
+import os
+import logging
+import psycopg2
+from psycopg2 import sql
+from typing import Optional, Dict, List
+from dotenv import load_dotenv
+from datetime import datetime
+from pydantic import BaseModel, Feild
 from langchain.schema import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain.output_parsers import PydanticOutputParser
-from pydantic import BaseModel, Field
-from typing import Optional
-
+from flask import Flask, request, jsonify, session, render_template
 
 load_dotenv()
 
@@ -617,7 +594,6 @@ def save_inquiry(data):
         if conn is not None:
             conn.close()
 
-
 class BookingInfo(BaseModel):
     program: Optional[str] = Field(None, description="The swimming program name")
     name: Optional[str] = Field(None, description="Customer's full name")
@@ -626,6 +602,7 @@ class BookingInfo(BaseModel):
 
 def extract_booking_info(query: str) -> BookingInfo:
     """Extract booking information from a natural language query using LangChain"""
+
     llm = ChatOpenAI(
         model="deepseek-llm",
         base_url="http://172.27.240.1:11434/v1",
@@ -656,9 +633,11 @@ def extract_booking_info(query: str) -> BookingInfo:
     response = llm.invoke(messages)
     return parser.parse(response.content)
 
-def get_missing_info(booking_info: BookingInfo) -> list:
+def get_missing_info(booking_info: BookingInfo) -> list
     """Identify missing required booking information"""
+
     missing = []
+
     if not booking_info.program:
         missing.append('program')
     if not booking_info.name:
@@ -667,8 +646,8 @@ def get_missing_info(booking_info: BookingInfo) -> list:
         missing.append('phone')
     if not booking_info.email:
         missing.append('email')
-    return missing
 
+    return missing
 
 @app.route('/')
 def chat_interface():
@@ -727,13 +706,13 @@ def handle_main_menu(message):
     if message == '1':
         return {
             "text": "Choose program:",
-            "options": [{"value": k, "label": v} for k, v in PROGRAMS.items()],
+            "options": [{"value": p, "label": p} for p in PROGRAMS],
             "new_state": 'PROGRAM_SELECTION'
         }
     elif message == '2':
         return {
             "text": "Choose program for details:",
-            "options": [{"value": k, "label": v} for k, v in PROGRAMS.items()],
+            "options": [{"value": p, "label": p} for p in PROGRAMS],
             "new_state": 'PROGRAM_INFO'
         }
     elif message == '3':
@@ -817,6 +796,7 @@ def handle_booking(message: str) -> dict:
         next_missing = get_next_missing_field(booking_data)
         
         if next_missing:
+            
             session['booking_step'] = f'GET_{next_missing.upper()}'
             prompts = {
                 'program': "Which program would you like to join?",
@@ -825,8 +805,9 @@ def handle_booking(message: str) -> dict:
                 'email': "📧 What's your email address?"
             }
             return {"text": prompts[next_missing]}
+
         else:
-            # All information collected
+
             booking_data['timestamp'] = datetime.now().isoformat()
             save_inquiry(booking_data)
             
@@ -872,6 +853,34 @@ def extract_program(text: str) -> Optional[str]:
             return program_name
     return None
 
+def extract_email(text: str) -> Optional[str]:
+    """Extract email using regex pattern"""
+    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    matches = re.findall(email_pattern, text)
+    return matches[0] if matches else None
+
+def extract_name(text: str) -> Optional[str]:
+    """Extract name from text with enhanced flexibility for various name expressions."""
+
+    name_patterns = [
+        r'(?:my\sname\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "My name is"
+        r'(?:i\'?m\s)([A-Z][a-zA-Z\'\-]+)',  # "I'm"
+        r'(?:i\sam\s)([A-Z][a-zA-Z\'\-]+)',  # "I am"
+        r'(?:this\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "This is"
+        r'(?:call\sme\s)([A-Z][a-zA-Z\'\-]+)',  # "Call me"
+        r'(?:i\s\'?m\scalled\s)([A-Z][a-zA-Z\'\-]+)',  # "I'm called"
+        r'(?:you\scan\scall\sme\s)([A-Z][a-zA-Z\'\-]+)',  # "You can call me"
+        r'(?:my\sfriends\scall\sme\s)([A-Z][a-zA-Z\'\-]+)',  # "My friends call me"
+        r'(?:it\'s\s)([A-Z][a-zA-Z\'\-]+)',  # "It's"
+    ]
+
+    for pattern in name_patterns:
+        matches = re.findall(pattern, text, flags=re.IGNORECASE)
+        if matches:
+            return matches[0]
+    
+    return None
+
 def get_next_missing_field(booking_data: dict) -> Optional[str]:
     """Return the next missing required field"""
     required_fields = ['program', 'name', 'phone', 'email']
@@ -887,29 +896,26 @@ def handle_ai_query(message: str) -> dict:
         is_booking_request = any(keyword in message.lower() for keyword in booking_keywords)
         
         if is_booking_request:
-            # Extract booking information
+
             extracted_data = {
                 'email': extract_email(message),
                 'phone': extract_phone(message),
                 'program': extract_program(message),
-                'name': None
+                'name': extract_name(message)
             }
             
-            # Get or initialize booking data from session
             booking_data = session.get('booking_data', {})
             
-            # Update with any new extracted information
             booking_data.update({k: v for k, v in extracted_data.items() if v is not None})
             
-            # Store in session
             session['booking_data'] = booking_data
             
-            # Get next missing field
             next_missing = get_next_missing_field(booking_data)
             
             if next_missing:
-                # Prepare response showing what we got
+
                 confirmed_info = []
+
                 if booking_data.get('program'):
                     confirmed_info.append(f"Program: {booking_data['program']}")
                 if booking_data.get('name'):
@@ -947,7 +953,7 @@ def handle_ai_query(message: str) -> dict:
                         "new_state": 'BOOKING_PROGRAM'
                     }
             else:
-                # All information collected, proceed with booking
+
                 booking_data['timestamp'] = datetime.now().isoformat()
                 save_inquiry(booking_data)
                 
@@ -969,7 +975,6 @@ def handle_ai_query(message: str) -> dict:
                     "new_state": 'MAIN_MENU'
                 }
             
-        # Regular AI query handling remains the same
         embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
         vector_store = Chroma(
             collection_name="example_collection",
@@ -1009,112 +1014,5 @@ def handle_ai_query(message: str) -> dict:
         logger.error(f"AI Query Failed: {e}")
         return {"text": "Our AI agent is currently busy. Please try again later."}
 
-
-# def handle_ai_query(message):
-#     """Enhanced AI query handler with booking capabilities"""
-#     try:
-#         # First, check if this looks like a booking request
-#         booking_keywords = ['book', 'register', 'sign up', 'enroll', 'join']
-#         is_booking_request = any(keyword in message.lower() for keyword in booking_keywords)
-        
-#         if is_booking_request:
-#             # Extract booking information from the query
-#             booking_info = extract_booking_info(message)
-#             missing_info = get_missing_info(booking_info)
-            
-#             if not missing_info:
-#                 # All information is present, proceed with booking
-#                 save_inquiry({
-#                     'program': booking_info.program,
-#                     'name': booking_info.name,
-#                     'phone': booking_info.phone,
-#                     'email': booking_info.email,
-#                     'timestamp': datetime.now().isoformat()
-#                 })
-                
-#                 confirmation = (
-#                     "✅ Booking confirmed!\n"
-#                     f"Program: {booking_info.program}\n"
-#                     f"Name: {booking_info.name}\n"
-#                     f"Phone: {booking_info.phone}\n"
-#                     f"Email: {booking_info.email}\n\n"
-#                     "We'll contact you soon!"
-#                 )
-                
-#                 return {
-#                     "text": confirmation,
-#                     "options": [{"value": "menu", "label": "Return to Menu"}],
-#                     "new_state": 'MAIN_MENU'
-#                 }
-#             else:
-#                 # Some information is missing, start interactive booking
-#                 session['booking_data'] = {
-#                     'program': booking_info.program,
-#                     'name': booking_info.name,
-#                     'phone': booking_info.phone,
-#                     'email': booking_info.email
-#                 }
-                
-#                 # Determine the first missing field
-#                 first_missing = missing_info[0]
-#                 session['booking_step'] = f'GET_{first_missing.upper()}'
-                
-#                 prompts = {
-#                     'program': "Which program would you like to join?\n" + "\n".join([f"{k}: {v}" for k, v in PROGRAMS.items()]),
-#                     'name': "What's your full name?",
-#                     'phone': "📱 What's your phone number?",
-#                     'email': "📧 What's your email address?"
-#                 }
-                
-#                 return {
-#                     "text": f"I got some of your information, but I need a few more details.\n\n{prompts[first_missing]}",
-#                     "new_state": 'BOOKING_PROGRAM'
-#                 }
-        
-#         # If not a booking request, proceed with regular AI query handling
-#         embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-#         vector_store = Chroma(
-#             collection_name="example_collection",
-#             embedding_function=embeddings,
-#             persist_directory="chroma_db"
-#         )
-#         retriever = vector_store.as_retriever(search_kwargs={'k': 100})
-        
-#         docs = retriever.invoke(message)
-#         knowledge = "\n\n".join([doc.page_content.strip() for doc in docs])
-        
-#         llm = ChatOpenAI(
-#             model="deepseek-llm",
-#             base_url="http://172.27.240.1:11434/v1",
-#             temperature=0.1
-#         )
-        
-#         messages = [
-#             SystemMessage(
-#                 content=f"""You're an expert assistant for Aquasprint Swimming Academy. Follow these rules:
-#                 1. Answer ONLY using the knowledge base below
-#                 2. Be concise and professional
-#                 3. If unsure, say "I don't have that information"
-#                 4. Never make up answers
-#                 5. If the user shows interest in booking, remind them they can book directly by saying something like 
-#                    "Would you like to book a class? Just tell me your preferred program and contact details!"
-
-#                 Knowledge Base:
-#                 {knowledge}"""
-#             ),
-#             HumanMessage(content=message)
-#         ]
-        
-#         ai_response = llm.invoke(messages)
-#         return {
-#             "text": f"🤖 AI Agent:\n{ai_response.content}",
-#             "options": [{"value": "menu", "label": "Return to Menu"}]
-#         }
-    
-#     except Exception as e:
-#         logger.error(f"AI Query Failed: {e}")
-#         return {"text": "Our AI agent is currently busy. Please try again later."}
-
-
 if __name__ == '__main__':
-    app.run(port=5000)
+    app.run(port=5000)  
