@@ -285,12 +285,14 @@ def handle_ai_query(message):
             embedding_function=embeddings,
             persist_directory="chroma_db"
         )
-        retriever = vector_store.as_retriever(search_kwargs={'k': 3})
+        retriever = vector_store.as_retriever(search_kwargs={'k': 100})
 
         docs = retriever.invoke(message)
         
         knowledge = "\n\n".join([doc.page_content.strip() for doc in docs])
         knowledge += "\n\nEnd of knowledge base."
+
+        print(knowledge)
 
         llm = ChatOpenAI(
             model="deepseek-llm",
@@ -301,7 +303,7 @@ def handle_ai_query(message):
 
         messages = [
             SystemMessage(
-            content=f"""You're an assistant for Aquasprint Swimming Academy. Follow these rules:
+            content=f"""You're an expert assistant for Aquasprint Swimming Academy. Follow these rules:
             1. Answer ONLY using the knowledge base below
             2. Be concise and professional
             3. If unsure, say "I don't have that information"
