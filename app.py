@@ -1,510 +1,3 @@
-# from flask import Flask, request, jsonify, session, render_template
-# import os
-# import logging
-# from dotenv import load_dotenv
-# from datetime import datetime
-# import pandas as pd
-# import uuid
-# import threading
-# from langchain.schema import HumanMessage, SystemMessage
-# from langchain_openai import ChatOpenAI
-# from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-# from langchain_chroma import Chroma
-# from langchain_core.messages import SystemMessage, HumanMessage
-
-# load_dotenv()
-
-# app = Flask(__name__)
-# app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'supersecretkey')
-
-# logging.basicConfig(level=logging.INFO)
-# logger = logging.getLogger(__name__)
-
-# csv_lock = threading.Lock()
-
-# PROGRAMS = {
-#     '1': 'Kids Program',
-#     '2': 'Adults Program',
-#     '3': 'Ladies-Only Aqua Fitness',
-#     '4': 'Baby & Toddler Program',
-#     '5': 'Special Needs Program'
-# }
-
-# uid = 'postgres'
-# pwd = 'ahmed'
-# server = "172.27.249.6"
-# database = "sample"
-
-# def get_main_menu():
-#     return {
-#         "text": "👋 Welcome to Aquasprint Swimming Academy!\n\nChoose an option:",
-#         "options": [
-#             {"value": "1", "label": "Book a Class"},
-#             {"value": "2", "label": "Program Information"},
-#             {"value": "3", "label": "Location & Hours"},
-#             {"value": "4", "label": "Contact Us"},
-#             {"value": "5", "label": "Talk to AI Agent"}
-#         ]
-#     }
-
-# import psycopg2
-# from psycopg2 import sql
-
-# def save_inquiry(data):
-#     """ Save inquiry data to PostgreSQL database """
-#     conn = None
-#     try:
-#         conn = psycopg2.connect(
-#             dbname=database,
-#             user=uid,
-#             password=pwd,
-#             host=server
-#         )
-#         cur = conn.cursor()
-        
-#         query = sql.SQL("""
-#             INSERT INTO inquiries (program, name, phone, email, timestamp)
-#             VALUES (%s, %s, %s, %s, %s)
-#         """)
-        
-#         cur.execute(query, (
-#             data['program'],
-#             data['name'],
-#             data['phone'],
-#             data['email'],
-#             data['timestamp']
-#         ))
-        
-#         conn.commit()
-#         cur.close()
-#     except Exception as e:
-#         logger.error(f"Save failed: {str(e)}")
-#         raise
-#     finally:
-#         if conn is not None:
-#             conn.close()
-
-# @app.route('/')
-# def chat_interface():
-#     session['session_id'] = str(uuid.uuid4())
-#     session['state'] = 'MAIN_MENU'
-#     return render_template('chat.html')
-
-# @app.route('/send_message', methods=['POST'])
-# def handle_message():
-#     user_input = request.json.get('message', '').strip()
-#     session_id = session.get('session_id')
-#     current_state = session.get('state', 'MAIN_MENU')
-
-#     response = process_message(user_input, current_state, session_id)
-
-#     if response is None:
-#         return jsonify({
-#             "text": "⚠️ An error occurred while processing your request. Please try again or type 'menu'"
-#         })
-
-#     if "new_state" in response:
-#         session['state'] = response.get('new_state', 'MAIN_MENU')
-
-#     return jsonify(response)
-
-# def process_message(message, current_state, session_id):
-#     try:
-#         logger.info(f"Processing message: {message}, Current state: {current_state}, Session ID: {session_id}")
-
-#         if message.lower() == 'menu':
-#             return {
-#                 "text": get_main_menu()['text'],
-#                 "options": get_main_menu()['options'],
-#                 "new_state": 'MAIN_MENU'
-#             }
-            
-#         if current_state == 'MAIN_MENU':
-#             return handle_main_menu(message)
-#         elif current_state == 'PROGRAM_SELECTION':
-#             return handle_program_selection(message)
-#         elif current_state == 'PROGRAM_INFO':
-#             return handle_program_info(message)
-#         elif current_state == 'BOOKING_PROGRAM':
-#             return handle_booking(message)
-#         elif current_state == 'AI_QUERY':
-#             return handle_ai_query(message)
-#         else:
-#             logger.error(f"Unknown state: {current_state}")
-#             return {"text": "⚠️ Unknown state. Please try again or type 'menu'"}
-            
-#     except Exception as e:
-#         logger.error(f"Error processing message: {e}")
-#         return {"text": "⚠️ An error occurred. Please try again or type 'menu'"}
-
-# def handle_main_menu(message):
-#     if message == '1':
-#         return {
-#             "text": "Choose program:",
-#             "options": [{"value": k, "label": v} for k, v in PROGRAMS.items()],
-#             "new_state": 'PROGRAM_SELECTION'
-#         }
-#     elif message == '2':
-#         return {
-#             "text": "Choose program for details:",
-#             "options": [{"value": k, "label": v} for k, v in PROGRAMS.items()],
-#             "new_state": 'PROGRAM_INFO'
-#         }
-#     elif message == '3':
-#         return {
-#             "text": ("🏊‍♂️ Aquasprint Swimming Academy\n\n"
-#                      "📍 Location: The Sustainable City, Dubai\n"
-#                      "⏰ Hours: Daily 6AM-10PM\n"
-#                      "📞 +971542502761\n"
-#                      "📧 info@aquasprint.ae"),
-#             "options": [{"value": "menu", "label": "Return to Menu"}]
-#         }
-#     elif message == '4':
-#         return {
-#             "text": ("📞 Contact Us:\n"
-#                      "Call us at +971542502761\n"
-#                      "Email: info@aquasprint.ae"),
-#             "options": [{"value": "menu", "label": "Return to Menu"}]
-#         }
-#     elif message == '5':
-#         return {
-#             "text": "Ask me anything about our programs!",
-#             "new_state": 'AI_QUERY'
-#         }
-#     else:
-#         return get_main_menu()
-
-# def handle_program_info(message):
-#     """ Handles the display of program information based on user choice """
-#     program = PROGRAMS.get(message)
-#     if program:
-#         details = {
-#             '1': "👶 Kids Program (4-14 years)\n- 8 skill levels\n- Certified instructors",
-#             '2': "🏊 Adults Program\n- Beginner to advanced\n- Flexible scheduling",
-#             '3': "🚺 Ladies-Only Aqua Fitness\n- Women-only sessions\n- Full-body workout",
-#             '4': "👶👨👩 Baby & Toddler\n- Parent-child classes\n- Water safety basics",
-#             '5': "🌟 Special Needs Program\n- Adapted curriculum\n- Individual attention"
-#         }.get(message, "Program details not available")
-        
-#         return {
-#             "text": f"{program} Details:\n{details}",
-#             "options": [{"value": "menu", "label": "Return to Menu"}],
-#             "new_state": "MAIN_MENU"
-#         }
-#     else:
-#         return {
-#             "text": "Invalid choice. Please select 1-5",
-#             "options": [{"value": k, "label": v} for k, v in PROGRAMS.items()],
-#             "new_state": 'PROGRAM_INFO'
-#         }
-
-# def handle_program_selection(message):
-#     """ Prepares for booking by capturing the selected program """
-#     program = PROGRAMS.get(message)
-#     if program:
-#         session['booking_data'] = {'program': program}
-#         session['booking_step'] = 'GET_NAME'
-#         return {
-#             "text": f"Selected program: {program}\nWhat's your full name?",
-#             "new_state": 'BOOKING_PROGRAM'
-#         }
-#     else:
-#         return {
-#             "text": "Invalid program selection. Please choose 1-5",
-#             "options": [{"value": k, "label": v} for k, v in PROGRAMS.items()],
-#             "new_state": 'PROGRAM_SELECTION'
-#         }
-
-# def handle_booking(message):
-#     """ Handles the multi-step booking process """
-#     try:
-#         current_step = session.get('booking_step', 'GET_NAME')
-#         booking_data = session.get('booking_data', {})
-
-#         logger.info(f"Booking Step: {current_step}, Message: {message}")
-
-#         if current_step == 'GET_NAME':
-#             booking_data['name'] = message
-#             session['booking_step'] = 'GET_PHONE'
-#             session['booking_data'] = booking_data
-#             return {"text": "📱 What's your phone number?"}
-
-#         elif current_step == 'GET_PHONE':
-#             booking_data['phone'] = message
-#             session['booking_step'] = 'GET_EMAIL'
-#             session['booking_data'] = booking_data
-#             return {"text": "📧 What's your email address?"}
-
-#         elif current_step == 'GET_EMAIL':
-#             booking_data['email'] = message
-#             booking_data['timestamp'] = datetime.now().isoformat()
-
-#             save_inquiry(booking_data)
-
-#             confirmation = (
-#                 "✅ Booking confirmed!\n"
-#                 f"Program: {booking_data.get('program')}\n"
-#                 f"Name: {booking_data.get('name')}\n"
-#                 f"Phone: {booking_data.get('phone')}\n"
-#                 f"Email: {booking_data.get('email')}\n\n"
-#                 "We'll contact you soon!"
-#             )
-
-#             session.pop('booking_data', None)
-#             session.pop('booking_step', None)
-
-#             return {
-#                 "text": confirmation,
-#                 "options": [{"value": "menu", "label": "Return to Menu"}],
-#                 "new_state": 'MAIN_MENU'
-#             }
-
-#         return {"text": "Invalid booking step. Type 'menu' to start over."}
-
-#     except Exception as e:
-#         logger.error(f"Booking error: {str(e)}")
-#         return {"text": "⚠️ Booking failed. Type 'menu' to restart."}
-
-# def handle_ai_query(message):
-#     """Uses RAG with Ollama API to handle AI queries about swimming programs"""
-#     try:
-#         embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-#         vector_store = Chroma(
-#             collection_name="example_collection",
-#             embedding_function=embeddings,
-#             persist_directory="chroma_db"
-#         )
-#         retriever = vector_store.as_retriever(search_kwargs={'k': 100})
-
-#         docs = retriever.invoke(message)
-        
-#         knowledge = "\n\n".join([doc.page_content.strip() for doc in docs])
-#         knowledge += "\n\nEnd of knowledge base."
-
-#         print(knowledge)
-
-#         llm = ChatOpenAI(
-#             model="deepseek-llm",
-#             base_url="http://172.27.240.1:11434/v1",
-#             verbose=True,
-#             temperature=0.1
-#         )
-
-#         messages = [
-#             SystemMessage(
-#             content=f"""You're an expert assistant for Aquasprint Swimming Academy. Follow these rules:
-#             1. Answer ONLY using the knowledge base below
-#             2. Be concise and professional
-#             3. If unsure, say "I don't have that information"
-#             4. Never make up answers
-
-#             Knowledge Base:
-#             {knowledge}"""
-#             ),
-#             HumanMessage(content=message)
-#         ]
-
-#         ai_response = llm.invoke(messages)
-#         response_text = ai_response.content
-
-#         return {
-#             "text": f"🤖 AI Agent:\n{response_text}",
-#             "options": [{"value": "menu", "label": "Return to Menu"}]
-#         }
-    
-#     except Exception as e:
-#         logger.error(f"AI Query Failed: {e}")
-#         return {"text": "Our AI agent is currently busy. Please try again later."}
-
-
-# if __name__ == '__main__':
-#     app.run(port=5000)
-
-
-
-
-# from flask import Flask, request, jsonify, session, render_template
-# import os
-# import logging
-# from dotenv import load_dotenv
-# from datetime import datetime
-# import psycopg2
-# from psycopg2 import sql
-# import threading
-# import uuid
-# from langgraph.graph import StateGraph
-# from langchain_core.messages import SystemMessage, HumanMessage
-# from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-# from langchain_chroma import Chroma
-# from langgraph.checkpoint.sqlite import SqliteSaver
-# from dataclasses import dataclass, field
-# from langgraph.graph import StateGraph
-# from pydantic import BaseModel
-# from typing import Optional
-# from langgraph.graph import StateGraph
-# from pydantic import BaseModel
-# from typing import Optional, TypedDict, Literal
-# from dataclasses import dataclass, field
-
-# load_dotenv()
-
-# app = Flask(__name__)
-# app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'supersecretkey')
-
-# logging.basicConfig(level=logging.INFO)
-# logger = logging.getLogger(__name__)
-
-# csv_lock = threading.Lock()
-
-# PROGRAMS = {
-#     '1': 'Kids Program',
-#     '2': 'Adults Program',
-#     '3': 'Ladies-Only Aqua Fitness',
-#     '4': 'Baby & Toddler Program',
-#     '5': 'Special Needs Program'
-# }
-
-# DB_CREDENTIALS = {
-#     'dbname': 'sample',
-#     'user': 'postgres',
-#     'password': 'ahmed',
-#     'host': '172.27.249.6'
-# }
-
-# # Define valid next states
-# class SupervisorOutput(TypedDict):
-#     next_state: Literal["tool_agent", "rag_agent"]
-
-# class AppState(BaseModel):
-#     input: str
-#     session_data: dict = field(default_factory=dict)
-#     output: Optional[str] = None
-
-# def supervisor(state: AppState) -> SupervisorOutput:
-#     user_input = state.input
-#     if "book" in user_input.lower() or "register" in user_input.lower():
-#         return {"next_state": "tool_agent"}  # Return dictionary
-#     return {"next_state": "rag_agent"}  # Return dictionary
-
-
-# # RAG Agent Function
-# def rag_agent(state: AppState):
-#     user_input = state.input
-#     embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-#     vector_store = Chroma(collection_name="example_collection", embedding_function=embeddings, persist_directory="chroma_db")
-#     retriever = vector_store.as_retriever(search_kwargs={'k': 100})
-#     docs = retriever.invoke(user_input)
-#     knowledge = "\n\n".join([doc.page_content.strip() for doc in docs]) + "\n\nEnd of knowledge base."
-
-#     llm = ChatOpenAI(model="deepseek-llm", base_url="http://172.27.240.1:11434/v1", temperature=0.1)
-#     messages = [
-#         SystemMessage(content=f"""You're an expert assistant for Aquasprint Swimming Academy. Use ONLY the knowledge base below:
-#         {knowledge}"""),
-#         HumanMessage(content=user_input)
-#     ]
-#     response = llm.invoke(messages).content
-#     return AppState(output=f"🤖 AI Agent: {response}", session_data=state.session_data)
-
-# # Tool Agent (Booking Handler)
-# def tool_agent(state: AppState):
-#     user_input = state.input
-#     session_data = state.session_data
-#     booking_step = session_data.get("booking_step", "GET_NAME")
-
-#     if booking_step == "GET_NAME":
-#         session_data["name"] = user_input
-#         session_data["booking_step"] = "GET_PHONE"
-#         return AppState(output="📱 What's your phone number?", session_data=session_data)
-    
-#     elif booking_step == "GET_PHONE":
-#         session_data["phone"] = user_input
-#         session_data["booking_step"] = "GET_EMAIL"
-#         return AppState(output="📧 What's your email address?", session_data=session_data)
-    
-#     elif booking_step == "GET_EMAIL":
-#         session_data["email"] = user_input
-#         session_data["timestamp"] = datetime.now().isoformat()
-        
-#         try:
-#             conn = psycopg2.connect(**DB_CREDENTIALS)
-#             cur = conn.cursor()
-#             cur.execute(
-#                 sql.SQL("""
-#                     INSERT INTO inquiries (program, name, phone, email, timestamp)
-#                     VALUES (%s, %s, %s, %s, %s)
-#                 """),
-#                 (session_data.get('program', 'General Inquiry'), session_data['name'], session_data['phone'], session_data['email'], session_data['timestamp'])
-#             )
-#             conn.commit()
-#             cur.close()
-#             conn.close()
-#         except Exception as e:
-#             logger.error(f"Database error: {e}")
-#             return AppState(output="⚠️ Booking failed. Please try again.", session_data=session_data)
-        
-#         session_data.clear()
-#         return AppState(output="✅ Booking confirmed! We'll contact you soon.", session_data=session_data)
-    
-#     return AppState(output="Invalid booking step. Type 'menu' to restart.", session_data=session_data)
-
-
-# # Define LangGraph Workflow
-# graph = StateGraph(AppState)
-# graph.add_node("supervisor", supervisor)
-# graph.add_node("rag_agent", rag_agent)
-# graph.add_node("tool_agent", tool_agent)
-
-# # Add edges without conditional logic since supervisor returns literal strings
-# graph.add_edge("supervisor", "tool_agent")
-# graph.add_edge("supervisor", "rag_agent")
-
-# graph.set_entry_point("supervisor")
-# graph.set_finish_point("rag_agent")
-# graph.set_finish_point("tool_agent")
-
-# graph.checkpoint_manager = SqliteSaver("chat_history.db")
-# workflow = graph.compile()
-
-# @app.route('/')
-# def chat_interface():
-#     session['session_id'] = str(uuid.uuid4())
-#     return render_template('chat.html')
-
-# @app.route('/send_message', methods=['POST'])
-# def handle_message():
-#     user_input = request.json.get('message', '').strip()
-#     session_data = session.get('session_data', {})
-    
-#     result = workflow.invoke(AppState(
-#         input=user_input,
-#         session_data=session_data
-#     ))
-    
-#     session['session_data'] = result.session_data
-#     return jsonify({"text": result.output})
-
-# if __name__ == '__main__':
-#     app.run(port=5000)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import pandas as pd
 import uuid
 import threading
@@ -516,7 +9,7 @@ from psycopg2 import sql
 from typing import Optional, Dict, List
 from dotenv import load_dotenv
 from datetime import datetime
-from pydantic import BaseModel, Feild
+from pydantic import BaseModel, Field
 from langchain.schema import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -536,11 +29,11 @@ logger = logging.getLogger(__name__)
 csv_lock = threading.Lock()
 
 PROGRAMS = {
-    '1': 'Kids Program',
-    '2': 'Adults Program',
-    '3': 'Ladies-Only Aqua Fitness',
-    '4': 'Baby & Toddler Program',
-    '5': 'Special Needs Program'
+    'Kids Program': 'Kids Program',
+    'Adults Program': 'Adults Program',
+    'Ladies-Only Aqua Fitness': 'Ladies-Only Aqua Fitness',
+    'Baby & Toddler Program': 'Baby & Toddler Program',
+    'Special Needs Program': 'Special Needs Program'
 }
 
 uid = 'postgres'
@@ -552,11 +45,11 @@ def get_main_menu():
     return {
         "text": "👋 Welcome to Aquasprint Swimming Academy!\n\nChoose an option:",
         "options": [
-            {"value": "1", "label": "Book a Class"},
-            {"value": "2", "label": "Program Information"},
-            {"value": "3", "label": "Location & Hours"},
-            {"value": "4", "label": "Contact Us"},
-            {"value": "5", "label": "Talk to AI Agent"}
+            {"value": "Book a Class", "label": "Book a Class"},
+            {"value": "Program Information", "label": "Program Information"},
+            {"value": "Location & Hours", "label": "Location & Hours"},
+            {"value": "Contact Us", "label": "Contact Us"},
+            {"value": "Talk to AI Agent", "label": "Talk to AI Agent"}
         ]
     }
 
@@ -633,7 +126,7 @@ def extract_booking_info(query: str) -> BookingInfo:
     response = llm.invoke(messages)
     return parser.parse(response.content)
 
-def get_missing_info(booking_info: BookingInfo) -> list
+def get_missing_info(booking_info: BookingInfo) -> list:
     """Identify missing required booking information"""
 
     missing = []
@@ -703,19 +196,23 @@ def process_message(message, current_state, session_id):
         return {"text": "⚠️ An error occurred. Please try again or type 'menu'"}
 
 def handle_main_menu(message):
-    if message == '1':
+    if message == 'Book a Class':
         return {
             "text": "Choose program:",
-            "options": [{"value": p, "label": p} for p in PROGRAMS],
+            "options": [
+                {"value": v, "label": v} for k, v in PROGRAMS.items()
+            ],
             "new_state": 'PROGRAM_SELECTION'
         }
-    elif message == '2':
+    elif message == 'Program Information':
         return {
             "text": "Choose program for details:",
-            "options": [{"value": p, "label": p} for p in PROGRAMS],
+            "options": [
+                {"value": v, "label": v} for k, v in PROGRAMS.items()
+            ],
             "new_state": 'PROGRAM_INFO'
         }
-    elif message == '3':
+    elif message == 'Location & Hours':
         return {
             "text": ("🏊‍♂️ Aquasprint Swimming Academy\n\n"
                      "📍 Location: The Sustainable City, Dubai\n"
@@ -724,31 +221,44 @@ def handle_main_menu(message):
                      "📧 info@aquasprint.ae"),
             "options": [{"value": "menu", "label": "Return to Menu"}]
         }
-    elif message == '4':
+    elif message == 'Contact Us':
         return {
             "text": ("📞 Contact Us:\n"
                      "Call us at +971542502761\n"
                      "Email: info@aquasprint.ae"),
             "options": [{"value": "menu", "label": "Return to Menu"}]
         }
-    elif message == '5':
+    elif message == 'Talk to AI Agent':
         return {
             "text": "Ask me anything about our programs!",
             "new_state": 'AI_QUERY'
         }
+    elif message in PROGRAMS.values():
+        return {
+            "text": f"Selected program: {message} What's your full name?",
+            "options": [{"value": "menu", "label": "Return to Menu"}]
+        }
     else:
-        return get_main_menu()
+        return {
+            "text": "Invalid program selection. Please choose a program:",
+            "options": [
+                {"value": v, "label": v} for k, v in PROGRAMS.items()
+            ],
+            "new_state": 'PROGRAM_SELECTION'
+        }
+
+
 
 def handle_program_info(message):
     """ Handles the display of program information based on user choice """
     program = PROGRAMS.get(message)
     if program:
         details = {
-            '1': "👶 Kids Program (4-14 years)\n- 8 skill levels\n- Certified instructors",
-            '2': "🏊 Adults Program\n- Beginner to advanced\n- Flexible scheduling",
-            '3': "🚺 Ladies-Only Aqua Fitness\n- Women-only sessions\n- Full-body workout",
-            '4': "👶👨👩 Baby & Toddler\n- Parent-child classes\n- Water safety basics",
-            '5': "🌟 Special Needs Program\n- Adapted curriculum\n- Individual attention"
+            'Kids Program': "👶 Kids Program (4-14 years)\n- 8 skill levels\n- Certified instructors",
+            'Adults Program': "🏊 Adults Program\n- Beginner to advanced\n- Flexible scheduling",
+            'Ladies-Only Aqua Fitness': "🚺 Ladies-Only Aqua Fitness\n- Women-only sessions\n- Full-body workout",
+            'Baby & Toddler Program': "👶👨👩 Baby & Toddler\n- Parent-child classes\n- Water safety basics",
+            'Special Needs Program': "🌟 Special Needs Program\n- Adapted curriculum\n- Individual attention"
         }.get(message, "Program details not available")
         
         return {
@@ -758,14 +268,21 @@ def handle_program_info(message):
         }
     else:
         return {
-            "text": "Invalid choice. Please select 1-5",
-            "options": [{"value": k, "label": v} for k, v in PROGRAMS.items()],
+            "text": "Invalid choice. Please select a program:",
+            "options": [
+                {"value": str(k), "label": v} for k, v in PROGRAMS.items()
+            ],
             "new_state": 'PROGRAM_INFO'
         }
 
+
 def handle_program_selection(message):
     """ Prepares for booking by capturing the selected program """
-    program = PROGRAMS.get(message)
+    # Normalize input: check if it's a valid program name or a number
+    program = PROGRAMS.get(message)  # Check if input is a number (key)
+    if not program and message in PROGRAMS.values():  
+        program = message  # Direct name match
+
     if program:
         session['booking_data'] = {'program': program}
         session['booking_step'] = 'GET_NAME'
@@ -773,12 +290,13 @@ def handle_program_selection(message):
             "text": f"Selected program: {program}\nWhat's your full name?",
             "new_state": 'BOOKING_PROGRAM'
         }
-    else:
-        return {
-            "text": "Invalid program selection. Please choose 1-5",
-            "options": [{"value": k, "label": v} for k, v in PROGRAMS.items()],
-            "new_state": 'PROGRAM_SELECTION'
-        }
+    
+    return {
+        "text": "Invalid program selection. Please choose a program:",
+        "options": [{"value": v, "label": v} for v in PROGRAMS.values()],
+        "new_state": 'PROGRAM_SELECTION'
+    }
+
 
 def handle_booking(message: str) -> dict:
     """Handle individual booking steps"""
@@ -845,19 +363,26 @@ def extract_phone(text: str) -> Optional[str]:
     matches = re.findall(phone_pattern, text)
     return matches[0] if matches else None
 
+# def extract_program(text: str) -> Optional[str]:
+#     """Extract program by matching against known program names"""
+#     text_lower = text.lower()
+#     for program_id, program_name in PROGRAMS.items():
+#         if program_name.lower() in text_lower:
+#             return program_name
+#     return None
+
+from fuzzywuzzy import process
+
 def extract_program(text: str) -> Optional[str]:
-    """Extract program by matching against known program names"""
+    """Extract program using fuzzy matching."""
     text_lower = text.lower()
-    for program_id, program_name in PROGRAMS.items():
-        if program_name.lower() in text_lower:
-            return program_name
+    programs = list(PROGRAMS.values())
+    best_match = process.extractOne(text_lower, programs)
+    
+    if best_match and best_match[1] > 80:
+        return best_match[0]
     return None
 
-def extract_email(text: str) -> Optional[str]:
-    """Extract email using regex pattern"""
-    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-    matches = re.findall(email_pattern, text)
-    return matches[0] if matches else None
 
 def extract_name(text: str) -> Optional[str]:
     """Extract name from text with enhanced flexibility for various name expressions."""
@@ -892,6 +417,10 @@ def get_next_missing_field(booking_data: dict) -> Optional[str]:
 def handle_ai_query(message: str) -> dict:
     """Enhanced AI query handler with booking capabilities"""
     try:
+
+        session.pop('booking_data', None)
+        session.pop('booking_step', None)
+
         booking_keywords = ['book', 'register', 'sign up', 'enroll', 'join']
         is_booking_request = any(keyword in message.lower() for keyword in booking_keywords)
         
@@ -1015,4 +544,4 @@ def handle_ai_query(message: str) -> dict:
         return {"text": "Our AI agent is currently busy. Please try again later."}
 
 if __name__ == '__main__':
-    app.run(port=5000)  
+    app.run(port=5000)
