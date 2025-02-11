@@ -3,8 +3,10 @@ import uuid
 import threading
 import re
 import os
+import requests
 import logging
 import psycopg2
+from fuzzywuzzy import process
 from psycopg2 import sql
 from typing import Optional, Dict, List
 from dotenv import load_dotenv
@@ -53,10 +55,87 @@ def get_main_menu():
         ]
     }
 
+# def save_inquiry(data):
+#     """ Save inquiry data to PostgreSQL database """
+#     conn = None
+#     try:
+#         conn = psycopg2.connect(
+#             dbname=database,
+#             user=uid,
+#             password=pwd,
+#             host=server
+#         )
+#         cur = conn.cursor()
+        
+#         query = sql.SQL("""
+#             INSERT INTO inquiries (program, name, phone, email, timestamp)
+#             VALUES (%s, %s, %s, %s, %s)
+#         """)
+        
+#         cur.execute(query, (
+#             data['program'],
+#             data['name'],
+#             data['phone'],
+#             data['email'],
+#             data['timestamp']
+#         ))
+        
+#         conn.commit()
+#         cur.close()
+#     except Exception as e:
+#         logger.error(f"Save failed: {str(e)}")
+#         raise
+#     finally:
+#         if conn is not None:
+#             conn.close()
+
+
+data_store = []
+
+@app.route('/add_inquiry', methods=['POST'])
+def add_inquiry():
+    """ Exposes data as an API endpoint """
+    data = request.json  # Assuming the data is sent as JSON
+    
+    # Store the inquiry in memory
+    data_store.append(data)
+    return jsonify({"message": "Data saved successfully!"}), 200
+
+
+@app.route('/get_inquiries', methods=['GET'])
+def get_inquiries():
+    """ Fetch all stored inquiries via API """
+    return jsonify(data_store), 200
+
+
+# Save inquiry data to PostgreSQL after posting it to the API
 def save_inquiry(data):
-    """ Save inquiry data to PostgreSQL database """
+    """ Post inquiry data to the exposed API and then fetch it to save it to PostgreSQL """
     conn = None
     try:
+        # Post the data to the API endpoint (/add_inquiry)
+        api_url = 'http://localhost:5001/add_inquiry'
+        response = requests.post(api_url, json=data)
+
+        # Check if the data was added successfully
+        if response.status_code == 200:
+            logger.info(f"Data successfully posted to API.")
+        else:
+            logger.error(f"Failed to post data to API: {response.status_code}")
+            return
+
+        # Fetch data from the API to store it in PostgreSQL
+        api_get_url = 'http://localhost:5000/get_inquiries'
+        response = requests.get(api_get_url)
+
+        # Check if the API call was successful
+        if response.status_code == 200:
+            data_list = response.json()  # Get the list of inquiries
+        else:
+            logger.error(f"Error fetching data from API: {response.status_code}")
+            return
+        
+        # Connect to PostgreSQL
         conn = psycopg2.connect(
             dbname=database,
             user=uid,
@@ -64,28 +143,35 @@ def save_inquiry(data):
             host=server
         )
         cur = conn.cursor()
-        
-        query = sql.SQL("""
-            INSERT INTO inquiries (program, name, phone, email, timestamp)
-            VALUES (%s, %s, %s, %s, %s)
-        """)
-        
-        cur.execute(query, (
-            data['program'],
-            data['name'],
-            data['phone'],
-            data['email'],
-            data['timestamp']
-        ))
-        
+
+        # Insert each inquiry into PostgreSQL
+        for inquiry in data_list:
+            query = sql.SQL("""
+                INSERT INTO inquiries (program, name, phone, email, timestamp)
+                VALUES (%s, %s, %s, %s, %s)
+            """)
+
+            cur.execute(query, (
+                inquiry['program'],
+                inquiry['name'],
+                inquiry['phone'],
+                inquiry['email'],
+                inquiry['timestamp']
+            ))
+
+        # Commit and close connection
         conn.commit()
         cur.close()
+        logger.info(f"Data successfully saved to PostgreSQL.")
     except Exception as e:
         logger.error(f"Save failed: {str(e)}")
         raise
     finally:
         if conn is not None:
             conn.close()
+
+
+
 
 class BookingInfo(BaseModel):
     program: Optional[str] = Field(None, description="The swimming program name")
@@ -363,16 +449,6 @@ def extract_phone(text: str) -> Optional[str]:
     matches = re.findall(phone_pattern, text)
     return matches[0] if matches else None
 
-# def extract_program(text: str) -> Optional[str]:
-#     """Extract program by matching against known program names"""
-#     text_lower = text.lower()
-#     for program_id, program_name in PROGRAMS.items():
-#         if program_name.lower() in text_lower:
-#             return program_name
-#     return None
-
-from fuzzywuzzy import process
-
 def extract_program(text: str) -> Optional[str]:
     """Extract program using fuzzy matching."""
     text_lower = text.lower()
@@ -382,7 +458,6 @@ def extract_program(text: str) -> Optional[str]:
     if best_match and best_match[1] > 80:
         return best_match[0]
     return None
-
 
 def extract_name(text: str) -> Optional[str]:
     """Extract name from text with enhanced flexibility for various name expressions."""
