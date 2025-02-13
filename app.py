@@ -55,39 +55,39 @@ def get_main_menu():
         ]
     }
 
-# def save_inquiry(data):
-#     """ Save inquiry data to PostgreSQL database """
-#     conn = None
-#     try:
-#         conn = psycopg2.connect(
-#             dbname=database,
-#             user=uid,
-#             password=pwd,
-#             host=server
-#         )
-#         cur = conn.cursor()
+def save_inquiry(data):
+    """ Save inquiry data to PostgreSQL database """
+    conn = None
+    try:
+        conn = psycopg2.connect(
+            dbname=database,
+            user=uid,
+            password=pwd,
+            host=server
+        )
+        cur = conn.cursor()
         
-#         query = sql.SQL("""
-#             INSERT INTO inquiries (program, name, phone, email, timestamp)
-#             VALUES (%s, %s, %s, %s, %s)
-#         """)
+        query = sql.SQL("""
+            INSERT INTO inquiries (program, name, phone, email, timestamp)
+            VALUES (%s, %s, %s, %s, %s)
+        """)
         
-#         cur.execute(query, (
-#             data['program'],
-#             data['name'],
-#             data['phone'],
-#             data['email'],
-#             data['timestamp']
-#         ))
+        cur.execute(query, (
+            data['program'],
+            data['name'],
+            data['phone'],
+            data['email'],
+            data['timestamp']
+        ))
         
-#         conn.commit()
-#         cur.close()
-#     except Exception as e:
-#         logger.error(f"Save failed: {str(e)}")
-#         raise
-#     finally:
-#         if conn is not None:
-#             conn.close()
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        logger.error(f"Save failed: {str(e)}")
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 data_store = []
@@ -108,69 +108,67 @@ def get_inquiries():
     return jsonify(data_store), 200
 
 
-# Save inquiry data to PostgreSQL after posting it to the API
-def save_inquiry(data):
-    """ Post inquiry data to the exposed API and then fetch it to save it to PostgreSQL """
-    conn = None
-    try:
-        # Post the data to the API endpoint (/add_inquiry)
-        api_url = 'http://localhost:5001/add_inquiry'
-        response = requests.post(api_url, json=data)
+# # Save inquiry data to PostgreSQL after posting it to the API
+# def save_inquiry(data):
+#     """ Post inquiry data to the exposed API and then fetch it to save it to PostgreSQL """
+#     conn = None
+#     try:
+#         # Post the data to the API endpoint (/add_inquiry)
+#         api_url = 'http://localhost:5001/add_inquiry'
+#         response = requests.post(api_url, json=data)
 
-        # Check if the data was added successfully
-        if response.status_code == 200:
-            logger.info(f"Data successfully posted to API.")
-        else:
-            logger.error(f"Failed to post data to API: {response.status_code}")
-            return
+#         # Check if the data was added successfully
+#         if response.status_code == 200:
+#             logger.info(f"Data successfully posted to API.")
+#         else:
+#             logger.error(f"Failed to post data to API: {response.status_code}")
+#             return
 
-        # Fetch data from the API to store it in PostgreSQL
-        api_get_url = 'http://localhost:5000/get_inquiries'
-        response = requests.get(api_get_url)
+#         # Fetch data from the API to store it in PostgreSQL
+#         api_get_url = 'http://localhost:5001/get_inquiries'
+#         response = requests.get(api_get_url)
 
-        # Check if the API call was successful
-        if response.status_code == 200:
-            data_list = response.json()  # Get the list of inquiries
-        else:
-            logger.error(f"Error fetching data from API: {response.status_code}")
-            return
+#         # Check if the API call was successful
+#         if response.status_code == 200:
+#             data_list = response.json()  # Get the list of inquiries
+#         else:
+#             logger.error(f"Error fetching data from API: {response.status_code}")
+#             return
         
-        # Connect to PostgreSQL
-        conn = psycopg2.connect(
-            dbname=database,
-            user=uid,
-            password=pwd,
-            host=server
-        )
-        cur = conn.cursor()
+#         # Connect to PostgreSQL
+#         conn = psycopg2.connect(
+#             dbname=database,
+#             user=uid,
+#             password=pwd,
+#             host=server
+#         )
+#         cur = conn.cursor()
 
-        # Insert each inquiry into PostgreSQL
-        for inquiry in data_list:
-            query = sql.SQL("""
-                INSERT INTO inquiries (program, name, phone, email, timestamp)
-                VALUES (%s, %s, %s, %s, %s)
-            """)
+#         # Insert each inquiry into PostgreSQL
+#         for inquiry in data_list:
+#             query = sql.SQL("""
+#                 INSERT INTO inquiries (program, name, phone, email, timestamp)
+#                 VALUES (%s, %s, %s, %s, %s)
+#             """)
 
-            cur.execute(query, (
-                inquiry['program'],
-                inquiry['name'],
-                inquiry['phone'],
-                inquiry['email'],
-                inquiry['timestamp']
-            ))
+#             cur.execute(query, (
+#                 inquiry['program'],
+#                 inquiry['name'],
+#                 inquiry['phone'],
+#                 inquiry['email'],
+#                 inquiry['timestamp']
+#             ))
 
-        # Commit and close connection
-        conn.commit()
-        cur.close()
-        logger.info(f"Data successfully saved to PostgreSQL.")
-    except Exception as e:
-        logger.error(f"Save failed: {str(e)}")
-        raise
-    finally:
-        if conn is not None:
-            conn.close()
-
-
+#         # Commit and close connection
+#         conn.commit()
+#         cur.close()
+#         logger.info(f"Data successfully saved to PostgreSQL.")
+#     except Exception as e:
+#         logger.error(f"Save failed: {str(e)}")
+#         raise
+#     finally:
+#         if conn is not None:
+#             conn.close()
 
 
 class BookingInfo(BaseModel):
