@@ -108,87 +108,6 @@ def get_inquiries():
     """ Fetch all stored inquiries via API """
     return jsonify(data_store), 200
 
-
-class BookingInfo(BaseModel):
-    program: Optional[str] = Field(None, description="The swimming program name")
-    name: Optional[str] = Field(None, description="Customer's full name")
-    phone: Optional[str] = Field(None, description="Customer's phone number")
-    email: Optional[str] = Field(None, description="Customer's email address")
-
-@tool
-def extract_booking_info(query: str) -> BookingInfo:
-    """Extract booking information from a natural language query using LangChain. Extracts only explicitly stated booking details. Prevents hallucination of missing data. IF INFORMATION NOT PROVIDED YOU STRICTLY RETURN `NONE` OKAY"""
-
-    llm = ChatOpenAI(
-        model="deepseek-llm",
-        base_url="http://172.27.240.1:11434/v1",
-        temperature=0.1
-    )
-    
-    parser = PydanticOutputParser(pydantic_object=BookingInfo)
-    
-    prompt = f"""
-    Extract booking information from the following query. If information is not present, return `None` for that field.
-    
-    Query: {query}
-    
-    Extract these fields:
-    - `program`: The program name from this list: ["Kids Program", "Adults Program", "Ladies-Only Aqua Fitness", "Baby & Toddler Program", "Special Needs Program"].
-      - If the user provides a similar name or has a typo, infer the correct program.
-      - If no program is mentioned, return `None`.
-    - `name`: Full name of the user. If not provided, return `None`.
-    - `phone`: Extract a valid phone number. If not found, return `None`.
-    - `email`: Extract a valid email address. If not found, return `None`.
-
-    - ONLY return details that are explicitly mentioned.
-    - If a detail is missing, set it to `None`.
-
-    **Return ONLY a JSON object, formatted exactly as follows (no extra text):**
-
-    ```json
-    {{
-        "program": "Program Name if given or None",
-        "name": "Full Name if given or None",
-        "phone": "Phone Number if given or None",
-        "email": "Email Address if given or None"
-    }}
-    ```
-
-    {parser.get_format_instructions()}
-    """
-
-    messages = [
-        SystemMessage(content="You are a structured data extraction assistant. You return only JSON responses."),
-        HumanMessage(content=prompt)
-    ]
-    
-    response = llm.invoke(messages)
-
-    print(response.content)
-
-    try:
-        return parser.parse(response.content.strip())  # Strip any leading/trailing whitespace
-    except Exception as e:
-        logger.error(f"Parsing error in extract_booking_info: {e}")
-        return BookingInfo(program=None, name=None, phone=None, email=None)  # Return a blank BookingInfo object on failure
-
-
-def get_missing_info(booking_info: BookingInfo) -> list:
-    """Identify missing required booking information"""
-
-    missing = []
-
-    if not booking_info.program:
-        missing.append('program')
-    if not booking_info.name:
-        missing.append('name')
-    if not booking_info.phone:
-        missing.append('phone')
-    if not booking_info.email:
-        missing.append('email')
-
-    return missing
-
 @app.route('/')
 def chat_interface():
     session['session_id'] = str(uuid.uuid4())
@@ -377,8 +296,17 @@ def handle_booking(message: str) -> dict:
 
         else:
 
-            booking_data['timestamp'] = datetime.now().isoformat()
-            save_inquiry(booking_data)
+            main_api_url = os.environ.get('MAIN_API_URL', '')
+            booking_data = {
+                "timestamp": datetime.now().isoformat(),
+                "program": "test ladies ladies",
+                "name": "ladies ladies",
+                "phone": "ladies ladies",
+                "email": "ladies ladies"
+            }
+
+            if (main_api_url != ''):
+                response = requests.post(f'{main_api_url}/inquiries', json=booking_data)
             
             confirmation = (
                 "✅ Booking confirmed!\n"
@@ -410,6 +338,93 @@ def get_next_missing_field(booking_data: dict) -> Optional[str]:
         if not booking_data.get(field):
             return field
     return None
+
+
+
+
+#============================================AI HERE==========================================================================
+
+
+
+class BookingInfo(BaseModel):
+    program: Optional[str] = Field(None, description="The swimming program name")
+    name: Optional[str] = Field(None, description="Customer's full name")
+    phone: Optional[str] = Field(None, description="Customer's phone number")
+    email: Optional[str] = Field(None, description="Customer's email address")
+
+def get_missing_info(booking_info: BookingInfo) -> list:
+    """Identify missing required booking information"""
+
+    missing = []
+
+    if not booking_info.program:
+        missing.append('program')
+    if not booking_info.name:
+        missing.append('name')
+    if not booking_info.phone:
+        missing.append('phone')
+    if not booking_info.email:
+        missing.append('email')
+
+    return missing
+
+@tool
+def extract_booking_info(query: str) -> BookingInfo:
+    """Extract booking information from a natural language query using LangChain. Extracts only explicitly stated booking details. Prevents hallucination of missing data. IF INFORMATION NOT PROVIDED YOU STRICTLY RETURN `NONE` OKAY"""
+
+    llm = ChatOpenAI(
+        model="deepseek-llm",
+        base_url="http://172.27.240.1:11434/v1",
+        temperature=0.1
+    )
+    
+    parser = PydanticOutputParser(pydantic_object=BookingInfo)
+    
+    prompt = f"""
+    Extract booking information from the following query. If information is not present, return `None` for that field.
+    
+    Query: {query}
+    
+    Extract these fields:
+    - `program`: The program name from this list: ["Kids Program", "Adults Program", "Ladies-Only Aqua Fitness", "Baby & Toddler Program", "Special Needs Program"].
+      - If the user provides a similar name or has a typo, infer the correct program.
+      - If no program is mentioned, return `None`.
+    - `name`: Full name of the user. If not provided, return `None`.
+    - `phone`: Extract a valid phone number. If not found, return `None`.
+    - `email`: Extract a valid email address. If not found, return `None`.
+
+    - ONLY return details that are explicitly mentioned.
+    - If a detail is missing, set it to `None`.
+
+    **Return ONLY a JSON object, formatted exactly as follows (no extra text):**
+
+    ```json
+    {{
+        "program": "Program Name if given or None",
+        "name": "Full Name if given or None",
+        "phone": "Phone Number if given or None",
+        "email": "Email Address if given or None"
+    }}
+    ```
+
+    {parser.get_format_instructions()}
+    """
+
+    messages = [
+        SystemMessage(content="You are a structured data extraction assistant. You return only JSON responses."),
+        HumanMessage(content=prompt)
+    ]
+    
+    response = llm.invoke(messages)
+
+    print(response.content)
+
+    try:
+        return parser.parse(response.content.strip())
+    except Exception as e:
+        logger.error(f"Parsing error in extract_booking_info: {e}")
+        return BookingInfo(program=None, name=None, phone=None, email=None)
+
 
 def handle_ai_query(message: str) -> dict:
     """Handles AI queries and ensures all booking details are collected step-by-step."""
@@ -454,8 +469,17 @@ def handle_ai_query(message: str) -> dict:
             return {"text": response_text, "new_state": f'BOOKING_{next_missing.upper()}'}
 
         # ✅ All fields collected → Confirm Booking
-        booking_data['timestamp'] = datetime.now().isoformat()
-        save_inquiry(booking_data)  # Save to database
+        main_api_url = os.environ.get('MAIN_API_URL', '')
+        booking_data = {
+            "timestamp": datetime.now().isoformat(),
+            "program": "test ladies ladies",
+            "name": "ladies ladies",
+            "phone": "ladies ladies",
+            "email": "ladies ladies"
+        }
+
+        if (main_api_url != ''):
+            response = requests.post(f'{main_api_url}/inquiries', json=booking_data)
 
         confirmation = (
             "✅ Booking confirmed!\n"
@@ -474,11 +498,6 @@ def handle_ai_query(message: str) -> dict:
     except Exception as e:
         logger.error(f"AI Query Failed: {e}")
         return {"text": "Our AI agent is currently busy. Please try again later."}
-
-
-
-
-
 
 if __name__ == '__main__':
     app.run(port=5000)
