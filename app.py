@@ -57,10 +57,49 @@ def get_main_menu():
         ]
     }
 
+
+# @app.route('/add_inquiry', methods=['POST'])
+# def add_inquiry():
+#     """ Exposes data as an API endpoint """
+#     data = request.json  # Assuming the data is sent as JSON
+    
+#     data_store.append(data)
+#     return jsonify({"message": "Data saved successfully!"}), 200
+
+
+# @app.route('/get_inquiries', methods=['GET'])
+# def get_inquiries():
+#     """ Fetch all stored inquiries via API """
+#     return jsonify(data_store), 200
+
+
 # def save_inquiry(data):
-#     """ Save inquiry data to PostgreSQL database """
+#     """ Post inquiry data to the exposed API and then fetch it to save it to PostgreSQL """
 #     conn = None
 #     try:
+#         # Post the data to the API endpoint (/add_inquiry)
+#         api_url = 'http://localhost:5000/add_inquiry'
+#         response = requests.post(api_url, json=data)
+
+#         # Check if the data was added successfully
+#         if response.status_code == 200:
+#             logger.info(f"Data successfully posted to API.")
+#         else:
+#             logger.error(f"Failed to post data to API: {response.status_code}")
+#             return
+
+#         # Fetch data from the API to store it in PostgreSQL
+#         api_get_url = 'http://localhost:5000/get_inquiries'
+#         response = requests.get(api_get_url)
+
+#         # Check if the API call was successful
+#         if response.status_code == 200:
+#             data_list = response.json()  # Get the list of inquiries
+#         else:
+#             logger.error(f"Error fetching data from API: {response.status_code}")
+#             return
+        
+#         # Connect to PostgreSQL
 #         conn = psycopg2.connect(
 #             dbname=database,
 #             user=uid,
@@ -68,22 +107,26 @@ def get_main_menu():
 #             host=server
 #         )
 #         cur = conn.cursor()
-        
-#         query = sql.SQL("""
-#             INSERT INTO inquiries (program, name, phone, email, timestamp)
-#             VALUES (%s, %s, %s, %s, %s)
-#         """)
-        
-#         cur.execute(query, (
-#             data['program'],
-#             data['name'],
-#             data['phone'],
-#             data['email'],
-#             data['timestamp']
-#         ))
-        
+
+#         # Insert each inquiry into PostgreSQL
+#         for inquiry in data_list:
+#             query = sql.SQL("""
+#                 INSERT INTO inquiries (program, name, phone, email, timestamp)
+#                 VALUES (%s, %s, %s, %s, %s)
+#             """)
+
+#             cur.execute(query, (
+#                 inquiry['program'],
+#                 inquiry['name'],
+#                 inquiry['phone'],
+#                 inquiry['email'],
+#                 inquiry['timestamp']
+#             ))
+
+#         # Commit and close connection
 #         conn.commit()
 #         cur.close()
+#         logger.info(f"Data successfully saved to PostgreSQL.")
 #     except Exception as e:
 #         logger.error(f"Save failed: {str(e)}")
 #         raise
@@ -92,82 +135,34 @@ def get_main_menu():
 #             conn.close()
 
 
-@app.route('/add_inquiry', methods=['POST'])
-def add_inquiry():
-    """ Exposes data as an API endpoint """
-    data = request.json  # Assuming the data is sent as JSON
-    
-    data_store.append(data)
-    return jsonify({"message": "Data saved successfully!"}), 200
+
+API_BASE_URL = "http://localhost:5001"
+
+@app.route('/send_inquiry', methods=['POST'])
+def send_inquiry(data):
+    """Send inquiry data to the API on port 5001"""
+    data = request.json
+    response = requests.post(f"{API_BASE_URL}/add_inquiry", json=data)
+
+    if response.status_code == 200:
+        logger.info("Data successfully sent to API.")
+        return jsonify({"message": "Inquiry sent to API!"}), 200
+    else:
+        logger.error(f"Failed to send data to API: {response.status_code}")
+        return jsonify({"error": "Failed to send inquiry"}), 500
 
 
-@app.route('/get_inquiries', methods=['GET'])
-def get_inquiries():
-    """ Fetch all stored inquiries via API """
-    return jsonify(data_store), 200
+@app.route('/fetch_inquiries', methods=['GET'])
+def fetch_inquiries():
+    """Fetch inquiries from the API on port 5001"""
+    response = requests.get(f"{API_BASE_URL}/get_inquiries")
 
-
-# Save inquiry data to PostgreSQL after posting it to the API
-def save_inquiry(data):
-    """ Post inquiry data to the exposed API and then fetch it to save it to PostgreSQL """
-    conn = None
-    try:
-        # Post the data to the API endpoint (/add_inquiry)
-        api_url = 'http://localhost:5000/add_inquiry'
-        response = requests.post(api_url, json=data)
-
-        # Check if the data was added successfully
-        if response.status_code == 200:
-            logger.info(f"Data successfully posted to API.")
-        else:
-            logger.error(f"Failed to post data to API: {response.status_code}")
-            return
-
-        # Fetch data from the API to store it in PostgreSQL
-        api_get_url = 'http://localhost:5000/get_inquiries'
-        response = requests.get(api_get_url)
-
-        # Check if the API call was successful
-        if response.status_code == 200:
-            data_list = response.json()  # Get the list of inquiries
-        else:
-            logger.error(f"Error fetching data from API: {response.status_code}")
-            return
-        
-        # Connect to PostgreSQL
-        conn = psycopg2.connect(
-            dbname=database,
-            user=uid,
-            password=pwd,
-            host=server
-        )
-        cur = conn.cursor()
-
-        # Insert each inquiry into PostgreSQL
-        for inquiry in data_list:
-            query = sql.SQL("""
-                INSERT INTO inquiries (program, name, phone, email, timestamp)
-                VALUES (%s, %s, %s, %s, %s)
-            """)
-
-            cur.execute(query, (
-                inquiry['program'],
-                inquiry['name'],
-                inquiry['phone'],
-                inquiry['email'],
-                inquiry['timestamp']
-            ))
-
-        # Commit and close connection
-        conn.commit()
-        cur.close()
-        logger.info(f"Data successfully saved to PostgreSQL.")
-    except Exception as e:
-        logger.error(f"Save failed: {str(e)}")
-        raise
-    finally:
-        if conn is not None:
-            conn.close()
+    if response.status_code == 200:
+        inquiries = response.json()
+        return jsonify(inquiries), 200
+    else:
+        logger.error(f"Failed to fetch inquiries: {response.status_code}")
+        return jsonify({"error": "Failed to retrieve inquiries"}), 500  
 
 
 class BookingInfo(BaseModel):
@@ -410,7 +405,7 @@ def handle_booking(message: str) -> dict:
         else:
 
             booking_data['timestamp'] = datetime.now().isoformat()
-            save_inquiry(booking_data)
+            send_inquiry(booking_data)
             
             confirmation = (
                 "✅ Booking confirmed!\n"
@@ -556,7 +551,7 @@ def handle_ai_query(message: str) -> dict:
             else:
 
                 booking_data['timestamp'] = datetime.now().isoformat()
-                save_inquiry(booking_data)
+                send_inquiry(booking_data)
                 
                 confirmation = (
                     "✅ Booking confirmed!\n"
