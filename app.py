@@ -97,7 +97,6 @@ def add_inquiry():
     """ Exposes data as an API endpoint """
     data = request.json  # Assuming the data is sent as JSON
     
-    # Store the inquiry in memory
     data_store.append(data)
     return jsonify({"message": "Data saved successfully!"}), 200
 
