@@ -1,0 +1,14 @@
+Flask==2.3.2  # Flask is used for web development
+python-dotenv==1.0.0  # For loading environment variables from .env files
+pandas==2.0.3  # For data manipulation and analysis
+langchain==0.0.248  # LangChain framework for building language model applications
+langchain-openai==0.0.5  # LangChain OpenAI integration
+langchain-community==0.0.17  # Community-contributed LangChain tools
+langchain-core==0.1.19  # Core components of LangChain
+openai==1.10.0  # OpenAI API client (updated to satisfy langchain-openai)
+fuzzywuzzy==0.18.0  # For fuzzy string matching
+psycopg2-binary==2.9.6  # PostgreSQL adapter for Python
+pydantic==1.10.12  # Data validation and settings management using Python type annotations
+chromadb==0.4.8  # ChromaDB for vector storage and retrieval
+unstructured==0.10.12  # For loading unstructured data like Markdown files
+requests==2.31.0  # For making HTTP requests
