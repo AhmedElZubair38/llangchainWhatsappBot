@@ -139,9 +139,11 @@ def get_main_menu():
 API_BASE_URL = "http://localhost:5001"
 
 @app.route('/send_inquiry', methods=['POST'])
-def send_inquiry(data):
+def send_inquiry():
     """Send inquiry data to the API on port 5001"""
     data = request.json
+    logger.info(f"📌 Received from bot: {data}")  # Debugging log
+
     response = requests.post(f"{API_BASE_URL}/add_inquiry", json=data)
 
     if response.status_code == 200:
@@ -162,7 +164,7 @@ def fetch_inquiries():
         return jsonify(inquiries), 200
     else:
         logger.error(f"Failed to fetch inquiries: {response.status_code}")
-        return jsonify({"error": "Failed to retrieve inquiries"}), 500  
+        return jsonify({"error": "Failed to retrieve inquiries"}), 500
 
 
 class BookingInfo(BaseModel):
@@ -405,7 +407,7 @@ def handle_booking(message: str) -> dict:
         else:
 
             booking_data['timestamp'] = datetime.now().isoformat()
-            send_inquiry(booking_data)
+            send_inquiry()
             
             confirmation = (
                 "✅ Booking confirmed!\n"
@@ -551,7 +553,7 @@ def handle_ai_query(message: str) -> dict:
             else:
 
                 booking_data['timestamp'] = datetime.now().isoformat()
-                send_inquiry(booking_data)
+                send_inquiry()
                 
                 confirmation = (
                     "✅ Booking confirmed!\n"
