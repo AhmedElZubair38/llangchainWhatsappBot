@@ -61,10 +61,10 @@ def get_main_menu():
 API_BASE_URL = "http://localhost:5001"
 
 @app.route('/send_inquiry', methods=['POST'])
-def send_inquiry():
+def send_inquiry(data):
     """Send inquiry data to the API on port 5001"""
-    data = request.json
-    logger.info(f"📌 Received from bot: {data}")  # Debugging log
+
+    logger.info(f"📌 Received from bot: {data}")
 
     response = requests.post(f"{API_BASE_URL}/add_inquiry", json=data)
 
@@ -250,7 +250,6 @@ def handle_main_menu(message):
         }
 
 
-
 def handle_program_info(message):
     """ Handles the display of program information based on user choice """
     program = PROGRAMS.get(message)
@@ -329,7 +328,6 @@ def handle_booking(message: str) -> dict:
         else:
 
             booking_data['timestamp'] = datetime.now().isoformat()
-            send_inquiry()
             
             confirmation = (
                 "✅ Booking confirmed!\n"
@@ -339,6 +337,8 @@ def handle_booking(message: str) -> dict:
                 f"Email: {booking_data['email']}\n\n"
                 "We'll contact you soon!"
             )
+
+            send_inquiry(booking_data)
             
             session.pop('booking_data', None)
             session.pop('booking_step', None)
@@ -475,7 +475,7 @@ def handle_ai_query(message: str) -> dict:
             else:
 
                 booking_data['timestamp'] = datetime.now().isoformat()
-                send_inquiry()
+                send_inquiry(booking_data)
                 
                 confirmation = (
                     "✅ Booking confirmed!\n"
