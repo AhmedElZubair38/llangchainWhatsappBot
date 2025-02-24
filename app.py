@@ -323,7 +323,15 @@ def handle_booking(message: str) -> dict:
                 'phone': "📱 What's your phone number?",
                 'email': "📧 What's your email address?"
             }
-            return {"text": prompts[next_missing]}
+
+            missing_field_prompts = {
+                    'program': "Could you please tell me which program you'd like to join?",
+                    'name': "Could you please provide your full name?",
+                    'phone': "Could you please share your phone number?",
+                    'email': "Could you please provide your email address?"
+            }
+
+            return {"text": missing_field_prompts[next_missing]}
 
         else:
 
@@ -365,21 +373,59 @@ def extract_phone(text: str) -> Optional[str]:
     matches = re.findall(phone_pattern, text)
     return matches[0] if matches else None
 
-def extract_program(text: str) -> Optional[str]:
-    """Extract program using fuzzy matching."""
-    text_lower = text.lower()
-    programs = list(PROGRAMS.values())
-    best_match = process.extractOne(text_lower, programs)
+# def extract_program(text: str) -> Optional[str]:
+#     """Extract program using fuzzy matching."""
+#     text_lower = text.lower()
+#     programs = list(PROGRAMS.values())
+#     best_match = process.extractOne(text_lower, programs)
     
-    if best_match and best_match[1] > 80:
-        return best_match[0]
+#     if best_match and best_match[1] > 90:
+#         return best_match[0]
+
+#     print(PROGRAMS.values())
+
+#     return None
+
+def extract_program(text: str) -> Optional[str]:
+    """Extract program using keyword-based matching first, then RapidFuzz."""
+    if not text:
+        return None
+
+    text_lower = text.lower().strip()
+
+    # Exact keyword matches
+    keyword_mapping = {
+        "kids": "Kids Program",
+        "adults": "Adults Program",
+        "ladies": "Ladies-Only Aqua Fitness",
+        "baby": "Baby & Toddler Program",
+        "toddler": "Baby & Toddler Program",
+        "special needs": "Special Needs Program"
+    }
+
+    for keyword, program in keyword_mapping.items():
+        if keyword in text_lower:
+            return program
+
+    programs = [program.lower().strip() for program in PROGRAMS.values()]
+    best_match = rf_process.extractOne(text_lower, programs, score_cutoff=90)
+
+    if best_match:
+        matched_program = best_match[0]
+        for original_program in PROGRAMS.values():
+            if original_program.lower().strip() == matched_program:
+                return original_program
+
     return None
+
 
 def extract_name(text: str) -> Optional[str]:
     """Extract name from text with enhanced flexibility for various name expressions."""
 
     name_patterns = [
         r'(?:my\sname\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "My name is"
+        r'(?:his\sname\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "His name is"
+        r'(?:my\sname\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "Her name is"
         r'(?:i\'?m\s)([A-Z][a-zA-Z\'\-]+)',  # "I'm"
         r'(?:i\sam\s)([A-Z][a-zA-Z\'\-]+)',  # "I am"
         r'(?:this\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "This is"
@@ -455,11 +501,23 @@ def handle_ai_query(message: str) -> dict:
                     'phone': "📱 What's your phone number?",
                     'email': "📧 What's your email address?"
                 }
+
+                missing_field_prompts = {
+                    'program': "Could you please tell me which program you'd like to join?",
+                    'name': "Could you please provide your full name?",
+                    'phone': "Could you please share your phone number?",
+                    'email': "Could you please provide your email address?"
+                }
                 
-                response_text = "Let me help you with the booking.\n\n"
+                response_text = "Sure, I'd be happy to help you with the booking! 😊\n\n"
+
                 if info_text:
-                    response_text += f"I've got this information:\n{info_text}\n\n"
-                response_text += f"Please provide: {prompts[next_missing]}"
+                    response_text += f"Here’s what I’ve gathered so far:\n{info_text}\n\n"
+                    
+                response_text += (
+                    "To proceed, "
+                    f"{missing_field_prompts[next_missing].lower()} Let me know if you need any assistance!"
+                )
                 
                 if next_missing == 'program':
                     return {

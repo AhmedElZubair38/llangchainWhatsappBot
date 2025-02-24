@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATA_PATH = r"/mnt/c/Users/USER/llangchainwhatsappbot/data"
+DATA_PATH = r"/mnt/c/Users/USER/aquaChat/data"
 CHROMA_PATH = r"chroma_db"
 
 embeddings_model = OpenAIEmbeddings(model="text-embedding-3-large")

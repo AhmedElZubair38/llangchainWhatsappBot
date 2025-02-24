@@ -194,6 +194,8 @@
       padding: 8px 12px;
       border-radius: 15px;
       max-width: 80%;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
     .user-message {
       background: #e3f2fd;
@@ -248,6 +250,7 @@
       const messageDiv = document.createElement('div');
       messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
       messageDiv.textContent = text;
+      messageDiv.innerHTML = text.replace(/\n/g, '<br>');
       chatMessages.appendChild(messageDiv);
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
