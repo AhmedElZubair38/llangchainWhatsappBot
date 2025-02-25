@@ -9,7 +9,7 @@
 - **Location:** The Sustainable City, Dubai  
 - **Hours:** Every day 6:00 AM - 10:00 PM  
 - **Phone:** +971 54 250 2761  
-- **Email:** [info@aquasprint.ae](mailto:info@aquasprint.ae)  
+- **Email:** info@aquasprint.ae
 
 ---
 

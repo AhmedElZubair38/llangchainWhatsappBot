@@ -6,6 +6,8 @@ import os
 import requests
 import logging
 import psycopg2
+from rapidfuzz.process import extractOne
+import rapidfuzz.process as rf_process
 from fuzzywuzzy import process
 from psycopg2 import sql
 from typing import Optional, Dict, List
@@ -419,21 +421,48 @@ def extract_program(text: str) -> Optional[str]:
     return None
 
 
+# def extract_name(text: str) -> Optional[str]:
+#     """Extract name from text with enhanced flexibility for various name expressions."""
+
+#     name_patterns = [
+#         r'(?:my\sname\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "My name is"
+#         r'(?:his\sname\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "His name is"
+#         r'(?:my\sname\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "Her name is"
+#         r'(?:i\'?m\s)([A-Z][a-zA-Z\'\-]+)',  # "I'm"
+#         r'(?:i\sam\s)([A-Z][a-zA-Z\'\-]+)',  # "I am"
+#         r'(?:this\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "This is"
+#         r'(?:call\sme\s)([A-Z][a-zA-Z\'\-]+)',  # "Call me"
+#         r'(?:i\s\'?m\scalled\s)([A-Z][a-zA-Z\'\-]+)',  # "I'm called"
+#         r'(?:you\scan\scall\sme\s)([A-Z][a-zA-Z\'\-]+)',  # "You can call me"
+#         r'(?:my\sfriends\scall\sme\s)([A-Z][a-zA-Z\'\-]+)',  # "My friends call me"
+#         r'(?:it\'s\s)([A-Z][a-zA-Z\'\-]+)',  # "It's"
+#     ]
+
+#     for pattern in name_patterns:
+#         matches = re.findall(pattern, text, flags=re.IGNORECASE)
+#         if matches:
+#             return matches[0]
+    
+#     return None
+
+import re
+from typing import Optional
+
 def extract_name(text: str) -> Optional[str]:
-    """Extract name from text with enhanced flexibility for various name expressions."""
+    """Extract full name from text with enhanced flexibility for various name expressions."""
 
     name_patterns = [
-        r'(?:my\sname\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "My name is"
-        r'(?:his\sname\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "His name is"
-        r'(?:my\sname\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "Her name is"
-        r'(?:i\'?m\s)([A-Z][a-zA-Z\'\-]+)',  # "I'm"
-        r'(?:i\sam\s)([A-Z][a-zA-Z\'\-]+)',  # "I am"
-        r'(?:this\sis\s)([A-Z][a-zA-Z\'\-]+)',  # "This is"
-        r'(?:call\sme\s)([A-Z][a-zA-Z\'\-]+)',  # "Call me"
-        r'(?:i\s\'?m\scalled\s)([A-Z][a-zA-Z\'\-]+)',  # "I'm called"
-        r'(?:you\scan\scall\sme\s)([A-Z][a-zA-Z\'\-]+)',  # "You can call me"
-        r'(?:my\sfriends\scall\sme\s)([A-Z][a-zA-Z\'\-]+)',  # "My friends call me"
-        r'(?:it\'s\s)([A-Z][a-zA-Z\'\-]+)',  # "It's"
+        r'(?:my\sname\sis\s)([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+)?)',  # "My name is"
+        r'(?:his\sname\sis\s)([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+)?)',  # "His name is"
+        r'(?:her\sname\sis\s)([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+)?)',  # "Her name is"
+        r'(?:i\'?m\s)([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+)?)',  # "I'm"
+        r'(?:i\sam\s)([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+)?)',  # "I am"
+        r'(?:this\sis\s)([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+)?)',  # "This is"
+        r'(?:call\sme\s)([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+)?)',  # "Call me"
+        r'(?:i\s\'?m\scalled\s)([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+)?)',  # "I'm called"
+        r'(?:you\scan\scall\sme\s)([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+)?)',  # "You can call me"
+        r'(?:my\sfriends\scall\sme\s)([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+)?)',  # "My friends call me"
+        r'(?:it\'s\s)([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+)?)',  # "It's"
     ]
 
     for pattern in name_patterns:
@@ -442,6 +471,7 @@ def extract_name(text: str) -> Optional[str]:
             return matches[0]
     
     return None
+
 
 def get_next_missing_field(booking_data: dict) -> Optional[str]:
     """Return the next missing required field"""
@@ -516,7 +546,7 @@ def handle_ai_query(message: str) -> dict:
                     
                 response_text += (
                     "To proceed, "
-                    f"{missing_field_prompts[next_missing].lower()} Let me know if you need any assistance!"
+                    f"{missing_field_prompts[next_missing].lower()}"
                 )
                 
                 if next_missing == 'program':
@@ -570,12 +600,14 @@ def handle_ai_query(message: str) -> dict:
         )
         
         messages = [SystemMessage(content=f"""You're an expert assistant for Aquasprint Swimming Academy. Follow these rules:
-            1. Answer ONLY using the knowledge base below
-            2. Be concise and professional
-            3. If unsure, say "I don't have that information"
-            4. Never make up answers
-            5. If the user shows interest in booking, remind them they can book directly by saying something like 
-               "Would you like to book a class? Just tell me your preferred program and contact details!"
+            1. Answer ONLY using the knowledge base fed to you.
+            2. Be concise and professional.
+            3. If unsure or outside of your knowledge scope and role, YOU HAVE TO SAY "I don't have that information".
+            4. Never make up answers.
+            5. If the user shows interest in booking or classes, remind them they can book directly by saying something like 
+               "Would you like to book a class? Just tell me your preferred program and contact details!
+            6. If a user asks you a question which requieres explanation or a lot of talking...just be concise and dont yap
+            7. Yes you are the Aquasprint Swimming Academy bot  or agent...thats why when the user talks to you about the academy, you are supposed to answer as in like "we" becuase you are part of us! you are part of Aquasprint Swimming Academy"
 
             Knowledge Base:
             {knowledge}"""),
