@@ -300,71 +300,6 @@ def handle_program_selection(message):
     }
 
 
-# def handle_booking(message: str) -> dict:
-#     """Handle individual booking steps"""
-
-#     try:
-#         current_step = session.get('booking_step')
-#         booking_data = session.get('booking_data', {})
-        
-#         if not current_step:
-#             return {"text": "⚠️ Booking session expired. Please start over.", "new_state": 'MAIN_MENU'}
-        
-#         field = current_step.split('_')[1].lower()
-#         booking_data[field] = message
-#         session['booking_data'] = booking_data
-        
-#         next_missing = get_next_missing_field(booking_data)
-        
-#         if next_missing:
-            
-#             session['booking_step'] = f'GET_{next_missing.upper()}'
-#             prompts = {
-#                 'program': "Which program would you like to join?",
-#                 'name': "What's your full name?",
-#                 'phone': "📱 What's your phone number?",
-#                 'email': "📧 What's your email address?"
-#             }
-
-#             missing_field_prompts = {
-#                     'program': "Could you please tell me which program you'd like to join?",
-#                     'name': "Could you please provide your full name?",
-#                     'phone': "Could you please share your phone number?",
-#                     'email': "Could you please provide your email address?"
-#             }
-
-#             return {"text": missing_field_prompts[next_missing]}
-
-#         else:
-
-#             booking_data['timestamp'] = datetime.now().isoformat()
-            
-#             confirmation = (
-#                 "✅ Booking confirmed!\n"
-#                 f"Program: {booking_data['program']}\n"
-#                 f"Name: {booking_data['name']}\n"
-#                 f"Phone: {booking_data['phone']}\n"
-#                 f"Email: {booking_data['email']}\n\n"
-#                 "We'll contact you soon!"
-#             )
-
-#             send_inquiry(booking_data)
-            
-#             session.pop('booking_data', None)
-#             session.pop('booking_step', None)
-            
-#             return {
-#                 "text": confirmation,
-#                 "options": [{"value": "menu", "label": "Return to Menu"}],
-#                 "new_state": 'MAIN_MENU'
-#             }
-            
-#     except Exception as e:
-#         logger.error(f"Booking error: {str(e)}")
-#         return {"text": "⚠️ Booking failed. Type 'menu' to restart."}
-
-
-
 def handle_booking(message: str) -> dict:
     """Handle individual booking steps with input validation."""
     try:
@@ -374,26 +309,21 @@ def handle_booking(message: str) -> dict:
         if not current_step:
             return {"text": "⚠️ Booking session expired. Please start over.", "new_state": 'MAIN_MENU'}
 
-        # Determine which field we are capturing
         field = current_step.split('_')[1].lower()
 
-        # Validate input based on the field type:
         if field == "email":
             validated_email = extract_email(message)
             if not validated_email:
-                # Re-prompt for valid email, keeping the same state
                 return {"text": "⚠️ The email address provided is invalid. Please enter a valid email address:"}
             booking_data[field] = validated_email
 
         elif field == "phone":
             validated_phone = extract_phone(message)
             if not validated_phone:
-                # Re-prompt for valid phone number
                 return {"text": "⚠️ The phone number provided is invalid. Please enter a valid phone number:"}
             booking_data[field] = validated_phone
 
         elif field == "name":
-            # Simple check: full name should contain at least two words
             if len(message.split()) < 2:
                 return {"text": "⚠️ Please provide your full name (first and last name):"}
             booking_data[field] = message
@@ -403,7 +333,6 @@ def handle_booking(message: str) -> dict:
 
         session['booking_data'] = booking_data
 
-        # Check for the next missing field
         next_missing = get_next_missing_field(booking_data)
         if next_missing:
             session['booking_step'] = f'GET_{next_missing.upper()}'
@@ -437,22 +366,12 @@ def handle_booking(message: str) -> dict:
         logger.error(f"Booking error: {str(e)}")
         return {"text": "⚠️ Booking failed. Type 'menu' to restart."}
 
-
-
-
 def extract_email(text: str) -> Optional[str]:
     """Extract email using regex pattern"""
 
     email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
     matches = re.findall(email_pattern, text)
     return matches[0] if matches else None
-
-# def extract_phone(text: str) -> Optional[str]:
-#     """Extract phone number using regex pattern"""
-
-#     phone_pattern = r'(?:\+?\d{1,4}[-.\s]?)?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}'
-#     matches = re.findall(phone_pattern, text)
-#     return matches[0] if matches else None
 
 def extract_phone(text: str) -> Optional[str]:
     """Extract and normalize a UAE phone number to +971 format.
@@ -467,17 +386,16 @@ def extract_phone(text: str) -> Optional[str]:
     text = text.strip()
     
     if text.startswith('+'):
-        # Remove any non-digit characters after the plus sign.
+
         phone = '+' + re.sub(r'\D', '', text[1:])
-        # Validate: must start with +971 and have exactly 13 characters (+971 + 9 digits)
         if phone.startswith("+971") and len(phone) == 13:
             return phone
         else:
             return None
+
     else:
-        # Remove non-digit characters.
+
         phone = re.sub(r'\D', '', text)
-        # Validate local format: must start with 0 and be exactly 10 digits.
         if phone.startswith("0") and len(phone) == 10:
             return "+971" + phone[1:]
         else:
